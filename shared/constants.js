@@ -24,8 +24,11 @@ export const MSG = {
   CAPTURE_DONE: 'snapfull:capture-done',
 };
 
-// Chrome caps a single <canvas> dimension around 32,767px. Stay safely under it
-// so we never silently truncate or fail on very tall pages.
+// Chrome caps a single <canvas> width/height ATTRIBUTE (a raw device-pixel
+// count, not a CSS length — canvas dimensions are never scaled by DPR) around
+// 32,767px. Stay safely under it so we never silently truncate, or worse,
+// corrupt a canvas that's grown past the real limit. This value is already
+// in that device-pixel unit — never multiply it by devicePixelRatio again.
 export const MAX_CANVAS_HEIGHT = 32000;
 
 // DOM stability window: after a scroll step, wait for this many ms with zero

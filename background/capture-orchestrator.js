@@ -2,7 +2,7 @@
 // have one. Talks to: the content script (scroll + stability), the offscreen
 // document (canvas stitching), and chrome.tabs (screenshot capture).
 
-import { MSG, STORAGE_KEYS, FREE_TIER_DAILY_LIMIT, CAPTURE_THROTTLE_MS } from '../shared/constants.js';
+import { MSG, STORAGE_KEYS, FREE_TIER_DAILY_LIMIT, CAPTURE_THROTTLE_MS, MAX_CANVAS_HEIGHT } from '../shared/constants.js';
 import { sanitizeFilename } from '../shared/sanitize.js';
 import { checkLicense } from '../licensing/license.js';
 
@@ -103,17 +103,14 @@ async function runCapture() {
   if (!prepareResp || !prepareResp.ok) throw new Error('Failed to prepare page for capture.');
   const metrics = prepareResp.data;
 
-  await ensureOffscreenDocument();
-  await chrome.runtime.sendMessage({
-    type: MSG.OFFSCREEN_INIT,
-    data: {
-      totalWidthPx: Math.round(metrics.viewportWidth * metrics.devicePixelRatio),
-      dpr: metrics.devicePixelRatio,
-    },
-  });
-
   const targets = computeScrollTargets(metrics.totalHeight, metrics.viewportHeight);
 
+  // Phase 1: scroll + capture every tile as a raw screenshot. Stitching is
+  // deferred to phase 2, once we know the exact crop for every tile — that's
+  // what lets us pre-size the output canvas(es) instead of resizing one
+  // mid-stream (see planTileLayout below for why that resizing was corrupting
+  // long captures).
+  const capturedTiles = []; // { dataUrl, cropTopCss }
   let previousBottomCss = 0;
   let lastCaptureAt = 0;
   for (let i = 0; i < targets.length; i++) {
@@ -138,15 +135,40 @@ async function runCapture() {
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
     lastCaptureAt = Date.now();
 
-    await chrome.runtime.sendMessage({
-      type: MSG.OFFSCREEN_ADD_TILE,
-      data: { dataUrl, cropTopCss },
-    });
-
+    capturedTiles.push({ dataUrl, cropTopCss });
     previousBottomCss = actualY + metrics.viewportHeight;
   }
 
   await sendToTab(tab.id, { type: MSG.RESTORE_PAGE });
+
+  // Phase 2: stitch. Lay out every captured tile into one or more output
+  // canvases up front (pure arithmetic, no image decoding needed — we
+  // already know each tile's device-pixel height from the capture metrics),
+  // then hand offscreen a plan it can allocate from once and draw into
+  // without ever resizing a canvas mid-stream.
+  const viewportHeightPx = Math.round(metrics.viewportHeight * metrics.devicePixelRatio);
+  const layout = planTileLayout(capturedTiles, viewportHeightPx, metrics.devicePixelRatio);
+
+  await ensureOffscreenDocument();
+  await chrome.runtime.sendMessage({
+    type: MSG.OFFSCREEN_INIT,
+    data: {
+      totalWidthPx: Math.round(metrics.viewportWidth * metrics.devicePixelRatio),
+      dpr: metrics.devicePixelRatio,
+      canvasHeights: layout.canvasHeights,
+    },
+  });
+
+  for (let i = 0; i < capturedTiles.length; i++) {
+    const placement = layout.placements[i];
+    if (!placement) continue; // nothing left to draw for this tile (fully cropped away)
+    const { dataUrl, cropTopCss } = capturedTiles[i];
+    const addResp = await chrome.runtime.sendMessage({
+      type: MSG.OFFSCREEN_ADD_TILE,
+      data: { dataUrl, cropTopCss, canvasIndex: placement.canvasIndex, yOffset: placement.yOffset },
+    });
+    if (!addResp || !addResp.ok) throw new Error(addResp?.error || 'Failed to draw a captured tile.');
+  }
 
   const finishResp = await chrome.runtime.sendMessage({ type: MSG.OFFSCREEN_FINISH });
   if (!finishResp || !finishResp.ok) throw new Error('Failed to stitch captured tiles.');
@@ -163,6 +185,45 @@ async function runCapture() {
   await chrome.tabs.create({ url: chrome.runtime.getURL('review/review.html') });
 
   return { tileCount: pending.tiles.length };
+}
+
+/**
+ * Decides which output canvas each captured tile lands in and at what
+ * y-offset, keeping every canvas at or under Chrome's real device-pixel
+ * <canvas> height ceiling (MAX_CANVAS_HEIGHT — already a device-pixel value,
+ * never multiplied by dpr: that used to be the bug here, since inflating the
+ * threshold on a scaled display let a canvas grow past the browser's actual
+ * limit and corrupt instead of cleanly splitting).
+ *
+ * @param {{cropTopCss:number}[]} capturedTiles
+ * @param {number} viewportHeightPx device-pixel height of one captured tile before cropping
+ * @param {number} dpr
+ * @returns {{ canvasHeights: number[], placements: ({canvasIndex:number, yOffset:number}|null)[] }}
+ */
+function planTileLayout(capturedTiles, viewportHeightPx, dpr) {
+  const canvasHeights = [];
+  const placements = [];
+  let canvasIndex = -1;
+  let cursor = 0;
+
+  for (const tile of capturedTiles) {
+    const cropTopPx = Math.round((tile.cropTopCss || 0) * dpr);
+    const drawHeightPx = viewportHeightPx - cropTopPx;
+    if (drawHeightPx <= 0) {
+      placements.push(null);
+      continue;
+    }
+    if (canvasIndex === -1 || cursor + drawHeightPx > MAX_CANVAS_HEIGHT) {
+      canvasIndex++;
+      canvasHeights.push(0);
+      cursor = 0;
+    }
+    placements.push({ canvasIndex, yOffset: cursor });
+    cursor += drawHeightPx;
+    canvasHeights[canvasIndex] = cursor;
+  }
+
+  return { canvasHeights, placements };
 }
 
 function computeScrollTargets(totalHeight, viewportHeight) {

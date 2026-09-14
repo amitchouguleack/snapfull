@@ -1,85 +1,144 @@
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --ink: #14161f;
+  --ink-dim: #5b6070;
+  --line: #e2e6ef;
+  --accent: #2954e5;
+  --accent-2: #6d5bf0;
+  --accent-ink: #ffffff;
+  --good: #12946b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1117;
+    --surface: #181b26;
+    --ink: #eef0f8;
+    --ink-dim: #a4a8ba;
+    --line: #2b2f40;
+    --accent: #7c93ff;
+    --accent-2: #a78bfa;
+    --accent-ink: #14161f;
+    --good: #35c98d;
+  }
+}
+
+* { box-sizing: border-box; }
+
 body {
   margin: 0;
-  padding: 32px 16px;
-  font: 14px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
-  color: #1a1a1a;
-  background: #f8f9fb;
+  padding: 40px 16px;
+  font: 15px/1.6 -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--ink);
+  background: var(--bg);
 }
 
 main {
-  max-width: 480px;
+  max-width: 520px;
   margin: 0 auto;
 }
 
 h1 {
-  font-size: 20px;
-  margin: 0 0 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  margin: 0 0 20px;
+}
+
+h1::before {
+  content: "";
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
 }
 
 .card {
-  background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
-  padding: 16px 18px;
-  margin-bottom: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 20px 22px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 2px rgba(20, 22, 31, 0.03), 0 10px 24px -18px rgba(20, 22, 31, 0.25);
 }
 
 .card h2 {
-  font-size: 14px;
-  margin: 0 0 8px;
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0 0 10px;
 }
 
 .hint {
-  font-size: 12px;
-  color: #6b7280;
+  font-size: 13px;
+  color: var(--ink-dim);
 }
 
 label {
   display: block;
-  font-size: 12px;
-  color: #444;
-  margin-bottom: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  margin-bottom: 6px;
 }
 
 input[type="text"] {
   width: 100%;
   box-sizing: border-box;
-  padding: 8px 10px;
-  font-size: 13px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  margin-bottom: 10px;
+  padding: 10px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+input[type="text"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 
 .btn-row {
   display: flex;
-  gap: 8px;
+  gap: 10px;
 }
 
 .btn {
   display: inline-block;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  border-radius: 6px;
+  padding: 10px 16px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  border-radius: 8px;
   border: none;
   cursor: pointer;
   text-decoration: none;
   text-align: center;
+  transition: filter 120ms ease, transform 120ms ease;
 }
 
+.btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.btn:active { transform: translateY(0); }
+
 .btn.primary {
-  background: #2563eb;
-  color: #fff;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--accent-ink);
 }
 
 .btn.secondary {
-  background: #f1f5f9;
-  color: #334155;
+  background: var(--bg);
+  color: var(--ink);
+  border: 1px solid var(--line);
 }
 
 #buy-link {
-  background: #16a34a;
+  background: linear-gradient(135deg, var(--good), #1fb37c);
   color: #fff;
-  margin-top: 6px;
+  margin-top: 8px;
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--good) 60%, transparent);
 }

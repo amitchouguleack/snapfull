@@ -1,43 +1,80 @@
+:root {
+  --bg: #eef1f8;
+  --surface: #ffffff;
+  --ink: #14161f;
+  --ink-dim: #5b6070;
+  --line: #dde1ec;
+  --accent: #2954e5;
+  --accent-2: #6d5bf0;
+  --accent-ink: #ffffff;
+  --bad: #d6383f;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1117;
+    --surface: #181b26;
+    --ink: #eef0f8;
+    --ink-dim: #a4a8ba;
+    --line: #2b2f40;
+    --accent: #7c93ff;
+    --accent-2: #a78bfa;
+    --accent-ink: #14161f;
+    --bad: #ff6b70;
+  }
+}
+
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: #f1f2f4;
-  color: #1a1a1a;
+  font: 14.5px/1.5 -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
 }
 
 .toolbar {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 8px 14px;
-  background: #fff;
-  border-bottom: 1px solid #e0e0e0;
+  gap: 18px;
+  padding: 10px 16px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
   position: sticky;
   top: 0;
   z-index: 5;
+  flex-wrap: wrap;
 }
 
 .tool-group {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
 }
 
 .tool-btn, .toolbar button, .export-btn {
-  padding: 6px 10px;
-  font-size: 12px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  background: #fff;
+  padding: 8px 13px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
   cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease, border-color 120ms ease;
+}
+
+.tool-btn:hover:not(.active), .toolbar button:hover, .export-btn:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
 }
 
 .tool-btn.active {
-  background: #2563eb;
-  color: #fff;
-  border-color: #2563eb;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--accent-ink);
+  border-color: transparent;
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
 .tool-btn[data-paid="1"]::after,
@@ -47,32 +84,42 @@ body {
 
 .canvas-wrap {
   overflow: auto;
-  max-height: calc(100vh - 110px);
-  padding: 20px;
+  max-height: calc(100vh - 118px);
+  padding: 24px;
   display: flex;
   justify-content: center;
 }
 
 #edit-canvas {
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  background: var(--surface);
+  box-shadow: 0 1px 2px rgba(20, 22, 31, 0.05), 0 16px 36px -18px rgba(20, 22, 31, 0.35);
+  border-radius: 4px;
   cursor: crosshair;
 }
 
 .export-row {
   display: flex;
-  gap: 8px;
-  padding: 10px 14px;
-  background: #fff;
-  border-top: 1px solid #e0e0e0;
+  gap: 10px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.export-btn[data-format="png"], #copy-btn {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: var(--accent-ink);
+  border-color: transparent;
 }
 
 #status-msg {
-  padding: 0 14px;
-  color: #555;
-  min-height: 18px;
+  padding: 4px 16px 0;
+  font-size: 13px;
+  color: var(--ink-dim);
+  min-height: 20px;
 }
 
 #status-msg.error {
-  color: #dc2626;
+  color: var(--bad);
+  font-weight: 600;
 }
