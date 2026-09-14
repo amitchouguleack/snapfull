@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SnapFull Options</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>SnapFull</h1>
+
+    <section id="upgrade" class="card">
+      <h2>Plan</h2>
+      <p id="plan-status">Checking…</p>
+      <p class="hint">
+        Free plan: 5 captures/day, crop &amp; redact, PNG export.<br>
+        Paid plan ($3.99/mo or $24.99/yr): unlimited captures, JPEG/PDF export,
+        annotate tools, no watermark.
+      </p>
+      <a id="buy-link" class="btn" href="#" target="_blank" rel="noopener noreferrer">Get a license on Gumroad</a>
+    </section>
+
+    <section class="card">
+      <h2>License key</h2>
+      <label for="license-input">Paste the key Gumroad emailed you</label>
+      <input id="license-input" type="text" autocomplete="off" spellcheck="false" placeholder="XXXXXXXX-XXXXXXXX-XXXXXXXX-XXXXXXXX">
+      <div class="btn-row">
+        <button id="activate-btn" class="btn primary">Activate</button>
+        <button id="clear-btn" class="btn secondary">Remove key</button>
+      </div>
+      <p id="license-message" class="hint" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <h2>Privacy</h2>
+      <p class="hint">
+        SnapFull never uploads your screenshots anywhere. The only network
+        request this extension ever makes is a license check against
+        Gumroad's API, and only when you have entered a license key.
+      </p>
+    </section>
+  </main>
+
+  <script src="options.js" type="module"></script>
+</body>
+</html>

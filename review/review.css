@@ -1,0 +1,78 @@
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font: 13px/1.4 -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: #f1f2f4;
+  color: #1a1a1a;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 14px;
+  background: #fff;
+  border-bottom: 1px solid #e0e0e0;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tool-btn, .toolbar button, .export-btn {
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.tool-btn.active {
+  background: #2563eb;
+  color: #fff;
+  border-color: #2563eb;
+}
+
+.tool-btn[data-paid="1"]::after,
+.export-btn[data-paid="1"]::after {
+  content: " 🔒";
+}
+
+.canvas-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 110px);
+  padding: 20px;
+  display: flex;
+  justify-content: center;
+}
+
+#edit-canvas {
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+  cursor: crosshair;
+}
+
+.export-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 14px;
+  background: #fff;
+  border-top: 1px solid #e0e0e0;
+}
+
+#status-msg {
+  padding: 0 14px;
+  color: #555;
+  min-height: 18px;
+}
+
+#status-msg.error {
+  color: #dc2626;
+}

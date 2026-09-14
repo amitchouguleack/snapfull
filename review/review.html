@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SnapFull — Review</title>
+  <link rel="stylesheet" href="review.css">
+</head>
+<body>
+  <div class="toolbar">
+    <div class="tool-group">
+      <button class="tool-btn" data-tool="crop" title="Crop">Crop</button>
+      <button class="tool-btn" data-tool="redact" title="Redact / blur">Redact</button>
+      <button class="tool-btn" data-tool="highlight" data-paid="1" title="Highlight (paid)">Highlight</button>
+      <button class="tool-btn" data-tool="arrow" data-paid="1" title="Arrow (paid)">Arrow</button>
+      <button class="tool-btn" data-tool="text" data-paid="1" title="Text (paid)">Text</button>
+    </div>
+    <div class="tool-group">
+      <button id="undo-btn" title="Undo">Undo</button>
+      <button id="apply-crop-btn" hidden>Apply crop</button>
+    </div>
+    <div class="tool-group" id="tile-nav" hidden>
+      <button id="prev-tile-btn">&larr;</button>
+      <span id="tile-label"></span>
+      <button id="next-tile-btn">&rarr;</button>
+    </div>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="edit-canvas"></canvas>
+  </div>
+
+  <div class="export-row">
+    <button class="export-btn" data-format="png">Download PNG</button>
+    <button class="export-btn" data-format="jpeg" data-paid="1">Download JPEG</button>
+    <button class="export-btn" data-format="pdf" data-paid="1">Download PDF</button>
+    <button id="copy-btn">Copy to clipboard</button>
+  </div>
+
+  <p id="status-msg" aria-live="polite"></p>
+
+  <script src="review.js" type="module"></script>
+</body>
+</html>
