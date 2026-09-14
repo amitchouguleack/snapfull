@@ -39,6 +39,12 @@ captureBtn.addEventListener('click', async () => {
   setStatus('Capturing… this stays open even if you close this popup.');
 
   try {
+    // The host-permission prompt must be requested from a user-gesture
+    // context. A service worker is not one by the time an async message
+    // chain reaches it, so we request it here, directly inside this click
+    // handler, before handing off to the background orchestrator.
+    await ensureHostPermissionForActiveTab();
+
     const resp = await chrome.runtime.sendMessage({ type: MSG.START_CAPTURE });
     if (!resp || !resp.ok) throw new Error(resp && resp.error || 'Capture failed.');
     setStatus('Done — opening review tab…');
@@ -48,6 +54,18 @@ captureBtn.addEventListener('click', async () => {
     captureBtn.disabled = false;
   }
 });
+
+async function ensureHostPermissionForActiveTab() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab || !tab.url || !/^https?:/.test(tab.url)) {
+    throw new Error('SnapFull can only capture regular http(s) pages.');
+  }
+  const origin = new URL(tab.url).origin + '/*';
+  const has = await chrome.permissions.contains({ origins: [origin] });
+  if (has) return;
+  const granted = await chrome.permissions.request({ origins: [origin] });
+  if (!granted) throw new Error('Permission to read this page was denied.');
+}
 
 upgradeLink.addEventListener('click', (e) => {
   e.preventDefault();

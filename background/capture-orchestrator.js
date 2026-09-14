@@ -50,13 +50,15 @@ async function getActiveTab() {
 }
 
 async function ensureHostPermission(tab) {
+  // The actual chrome.permissions.request() happens in popup.js, inside the
+  // click handler — that's the only place with a genuine user-gesture
+  // context. By the time this service worker runs, that context is gone, so
+  // a request() call here could silently fail. This is just a defensive
+  // check: the popup should always have granted it before sending us
+  // START_CAPTURE, but never proceed to script-inject/capture without it.
   const origin = new URL(tab.url).origin + '/*';
   const has = await chrome.permissions.contains({ origins: [origin] });
-  if (has) return;
-  // Request only the current tab's origin, only at the moment of first
-  // capture on that origin — never <all_urls> at install time.
-  const granted = await chrome.permissions.request({ origins: [origin] });
-  if (!granted) throw new Error('Permission to read this page was denied.');
+  if (!has) throw new Error('Missing permission for this page — please try capturing again.');
 }
 
 async function checkAndConsumeFreeTierQuota() {
