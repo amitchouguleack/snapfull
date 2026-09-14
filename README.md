@@ -3,6 +3,9 @@
 Local-only, $0/month-infra full-page screenshot extension for Chrome (MV3).
 Capture → crop / redact / annotate → export. No cloud, no account, no backend.
 
+**Landing page:** https://claude.ai/artifact/66BdzBEvroVPTKL6txagUf
+(private — share it from the page's share menu when you're ready for others to see it)
+
 See the original build plan for full product/architecture rationale. This
 README tracks what's actually implemented and what's left.
 
