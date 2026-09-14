@@ -40,6 +40,13 @@ export const STABILITY_MAX_WAIT_MS = 2000;
 // lazy-loaded images/fonts a moment to kick off their network requests.
 export const POST_SCROLL_SETTLE_DELAY_MS = 80;
 
+// Chrome enforces MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND (a handful of
+// calls/sec) on chrome.tabs.captureVisibleTab. The DOM-stability wait alone
+// doesn't guarantee we stay under it (a page that settles instantly would
+// blow through the quota on tall pages), so tile capture is throttled to at
+// least this many ms apart regardless of how fast the page settles.
+export const CAPTURE_THROTTLE_MS = 500;
+
 export const FREE_TIER_DAILY_LIMIT = 5;
 
 export const STORAGE_KEYS = {

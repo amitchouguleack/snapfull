@@ -2,7 +2,7 @@
 // have one. Talks to: the content script (scroll + stability), the offscreen
 // document (canvas stitching), and chrome.tabs (screenshot capture).
 
-import { MSG, STORAGE_KEYS, FREE_TIER_DAILY_LIMIT } from '../shared/constants.js';
+import { MSG, STORAGE_KEYS, FREE_TIER_DAILY_LIMIT, CAPTURE_THROTTLE_MS } from '../shared/constants.js';
 import { sanitizeFilename } from '../shared/sanitize.js';
 import { checkLicense } from '../licensing/license.js';
 
@@ -85,6 +85,10 @@ function sendToTab(tabId, message) {
   return chrome.tabs.sendMessage(tabId, message);
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function runCapture() {
   const tab = await getActiveTab();
   await ensureHostPermission(tab);
@@ -111,6 +115,7 @@ async function runCapture() {
   const targets = computeScrollTargets(metrics.totalHeight, metrics.viewportHeight);
 
   let previousBottomCss = 0;
+  let lastCaptureAt = 0;
   for (let i = 0; i < targets.length; i++) {
     const targetY = targets[i];
     const scrollResp = await sendToTab(tab.id, { type: MSG.SCROLL_TO, y: targetY });
@@ -121,9 +126,17 @@ async function runCapture() {
     const isFirst = i === 0;
     const cropTopCss = isFirst ? 0 : Math.max(overlapCss, metrics.headerHeight || 0);
 
-    // captureVisibleTab must be called at most a few times/second; the DOM
-    // stability wait in the content script already paces us well below that.
+    // Chrome caps captureVisibleTab at a few calls/second
+    // (MAX_CAPTURE_VISIBLE_TAB_CALLS_PER_SECOND) and throws a quota error if
+    // exceeded. The DOM-stability wait alone doesn't guarantee we stay under
+    // it — a page that settles instantly would blow through the quota on a
+    // long page — so enforce a minimum gap between captures explicitly.
+    const sinceLastCapture = Date.now() - lastCaptureAt;
+    if (lastCaptureAt && sinceLastCapture < CAPTURE_THROTTLE_MS) {
+      await sleep(CAPTURE_THROTTLE_MS - sinceLastCapture);
+    }
     const dataUrl = await chrome.tabs.captureVisibleTab(tab.windowId, { format: 'png' });
+    lastCaptureAt = Date.now();
 
     await chrome.runtime.sendMessage({
       type: MSG.OFFSCREEN_ADD_TILE,
