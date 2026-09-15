@@ -9,15 +9,15 @@ Capture → crop / redact / annotate → export. No cloud, no account, no backen
 See the original build plan for full product/architecture rationale. This
 README tracks what's actually implemented and what's left.
 
-## Status: Phase 1–2 scaffolded (unreviewed, untested in a real browser yet)
+## Status: Phase 1–3 implemented; Phase 1 capture confirmed working in real Chrome
 
 | Phase | Status |
 |---|---|
-| 1 — Core capture engine (scroll controller, offscreen stitcher, DOM-stability wait, canvas-height-ceiling tiling, sticky-header cropping) | Implemented, **not yet tested against real pages** |
-| 2 — Review/export UI (crop, redact, highlight/arrow/text, PNG/JPEG/PDF export, clipboard copy, watermark, multi-part export) | Implemented, **not yet tested** |
-| 3 — Licensing (Gumroad Membership verify, grace-period cache, free-tier daily counter) | Implemented, **needs a real Gumroad product + permalink** |
+| 1 — Core capture engine (scroll controller, offscreen stitcher, DOM-stability wait, canvas-height-ceiling tiling, sticky-header cropping) | **Confirmed working** — tested against a very long real page (Wikipedia's World War II article, multi-part capture) after fixing a canvas-height unit bug and a separate GPU-texture-limit bug in the review preview |
+| 2 — Review/export UI (crop, redact, highlight/arrow/text, PNG/JPEG/PDF export, clipboard copy, watermark, multi-part export) | Implemented; export path confirmed via the same real-page test above. Redact/highlight/arrow/crop interactions themselves still need manual click-through testing |
+| 3 — Licensing (Gumroad Membership verify, grace-period cache, free-tier daily counter) | **Live** — SnapFull Pro is a real Gumroad Membership product, wired via `GUMROAD_PRODUCT_ID`/`GUMROAD_PRODUCT_URL` in [shared/constants.js](shared/constants.js). Verify call itself not yet exercised against a real license key |
 | 4 — Security + QA pass | Partially self-reviewed, see checklist below — needs a real audit pass |
-| 5 — Store assets + landing page | Not started |
+| 5 — Store assets + landing page | Landing page done (linked above); store screenshots/listing copy not started |
 | 6 — Ship | Not started |
 
 ## Before you can actually use this
@@ -25,11 +25,15 @@ README tracks what's actually implemented and what's left.
 1. **Load unpacked** in `chrome://extensions` (Developer mode → Load unpacked
    → select this folder) and test the capture flow against real pages —
    nothing in here has been run in an actual browser yet.
-2. Create a **Gumroad Membership product**, then replace
-   `GUMROAD_PRODUCT_PERMALINK` in [shared/constants.js](shared/constants.js)
-   with your real permalink.
-3. Regenerate proper icons — [icons/](icons/) currently holds programmatically
+2. Regenerate proper icons — [icons/](icons/) currently holds programmatically
    generated placeholders, not real brand art.
+
+**Gumroad is live:** SnapFull Pro is a real Gumroad Membership product.
+`GUMROAD_PRODUCT_ID` and `GUMROAD_PRODUCT_URL` in
+[shared/constants.js](shared/constants.js) are wired to it. License checks
+call Gumroad's `/v2/licenses/verify` with `product_id` (the stable internal
+identifier), not `product_permalink` — the permalink/URL slug is only used
+for the human-facing checkout link on the options page.
 
 ## Architecture
 

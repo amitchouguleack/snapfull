@@ -71,7 +71,13 @@ export const STORAGE_KEYS = {
   PENDING_CAPTURE: 'snapfull:pending-capture',
 };
 
-export const GUMROAD_PRODUCT_PERMALINK = 'REPLACE_WITH_GUMROAD_PRODUCT_PERMALINK';
+// Gumroad's /v2/licenses/verify endpoint accepts either product_id or
+// product_permalink to identify the product. We use product_id — it's the
+// stable internal identifier and doesn't change if the permalink/URL slug
+// ever does. GUMROAD_PRODUCT_URL is separate: that's just the human-facing
+// checkout link used on the options page's "buy" button.
+export const GUMROAD_PRODUCT_ID = 'KY3-EXEKxMnayrDAGqQsiA==';
+export const GUMROAD_PRODUCT_URL = 'https://amitchougle.gumroad.com/l/azdit';
 export const GUMROAD_VERIFY_URL = 'https://api.gumroad.com/v2/licenses/verify';
 export const LICENSE_GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export const LICENSE_RECHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24h

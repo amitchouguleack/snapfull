@@ -4,7 +4,7 @@
 
 import {
   STORAGE_KEYS,
-  GUMROAD_PRODUCT_PERMALINK,
+  GUMROAD_PRODUCT_ID,
   GUMROAD_VERIFY_URL,
   LICENSE_GRACE_PERIOD_MS,
   LICENSE_RECHECK_INTERVAL_MS,
@@ -50,7 +50,7 @@ export async function checkLicense() {
  */
 async function verifyWithGumroad(licenseKey) {
   const body = new URLSearchParams({
-    product_permalink: GUMROAD_PRODUCT_PERMALINK,
+    product_id: GUMROAD_PRODUCT_ID,
     license_key: licenseKey,
     // Do not increment Gumroad's internal uses counter on routine background
     // rechecks — only count an actual new activation.

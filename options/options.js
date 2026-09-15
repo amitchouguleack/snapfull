@@ -1,4 +1,4 @@
-import { GUMROAD_PRODUCT_PERMALINK } from '../shared/constants.js';
+import { GUMROAD_PRODUCT_URL } from '../shared/constants.js';
 import { checkLicense, activateLicense, clearLicense } from '../licensing/license.js';
 
 const planStatus = document.getElementById('plan-status');
@@ -8,7 +8,7 @@ const activateBtn = document.getElementById('activate-btn');
 const clearBtn = document.getElementById('clear-btn');
 const licenseMessage = document.getElementById('license-message');
 
-buyLink.href = `https://gumroad.com/l/${GUMROAD_PRODUCT_PERMALINK}`;
+buyLink.href = GUMROAD_PRODUCT_URL;
 
 async function render() {
   const license = await checkLicense();
