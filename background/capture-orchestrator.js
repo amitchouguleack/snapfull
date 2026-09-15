@@ -5,11 +5,17 @@
 import { MSG, STORAGE_KEYS, FREE_TIER_DAILY_LIMIT, CAPTURE_THROTTLE_MS, MAX_CANVAS_HEIGHT } from '../shared/constants.js';
 import { sanitizeFilename } from '../shared/sanitize.js';
 import { checkLicense } from '../licensing/license.js';
+import { installGlobalErrorHandlers, logError, logCaptureResult } from '../shared/diagnostics.js';
 
 const CONTENT_SCRIPT_FILE = 'content-scripts/scroll-controller.js';
 const OFFSCREEN_URL = 'offscreen/stitcher.html';
 
 let offscreenReady = null; // promise, memoized
+
+// Hidden, local-only diagnostics (see shared/diagnostics.js) — catches
+// anything that slips past this file's own try/catch points. No network
+// call is ever made from this or anywhere diagnostics touches.
+installGlobalErrorHandlers('background');
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message !== 'object') return false;
@@ -17,7 +23,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === MSG.START_CAPTURE) {
     runCapture()
       .then((result) => sendResponse({ ok: true, result }))
-      .catch((err) => sendResponse({ ok: false, error: String(err && err.message || err) }));
+      .catch((err) => {
+        const message = String(err && err.message || err);
+        logError('background', message);
+        logCaptureResult({ ok: false, error: message });
+        sendResponse({ ok: false, error: message });
+      });
     return true; // async
   }
 
@@ -184,6 +195,7 @@ async function runCapture() {
   await chrome.storage.local.set({ [STORAGE_KEYS.PENDING_CAPTURE]: pending });
   await chrome.tabs.create({ url: chrome.runtime.getURL('review/review.html') });
 
+  await logCaptureResult({ ok: true, tileCount: pending.tiles.length });
   return { tileCount: pending.tiles.length };
 }
 

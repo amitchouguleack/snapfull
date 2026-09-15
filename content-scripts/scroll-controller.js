@@ -24,6 +24,32 @@
   if (window.__snapfullControllerInstalled) return;
   window.__snapfullControllerInstalled = true;
 
+  // Hidden, local-only diagnostics (see shared/diagnostics.js). This file
+  // can't import that module — it's injected as a classic script via
+  // chrome.scripting.executeScript, not an ES module — so the storage key
+  // and cap are duplicated here as literals. Keep them in sync with
+  // STORAGE_KEYS.ERROR_LOG / MAX_ERROR_LOG_ENTRIES in shared/constants.js.
+  // Content scripts do have access to chrome.storage, so this writes
+  // directly with no message round-trip to the background page. No network
+  // call happens anywhere in this function.
+  const DIAGNOSTICS_ERROR_LOG_KEY = 'snapfull:diagnostics:errors';
+  const DIAGNOSTICS_MAX_ERROR_LOG = 20;
+  async function logError(message) {
+    try {
+      const text = String(message == null ? 'Unknown error' : (message.message || message)).slice(0, 500);
+      const entry = { ts: Date.now(), component: 'content-script', message: text };
+      const stored = await chrome.storage.local.get(DIAGNOSTICS_ERROR_LOG_KEY);
+      const log = Array.isArray(stored[DIAGNOSTICS_ERROR_LOG_KEY]) ? stored[DIAGNOSTICS_ERROR_LOG_KEY] : [];
+      log.push(entry);
+      while (log.length > DIAGNOSTICS_MAX_ERROR_LOG) log.shift();
+      await chrome.storage.local.set({ [DIAGNOSTICS_ERROR_LOG_KEY]: log });
+    } catch {
+      // Best-effort only — never let diagnostics logging itself throw.
+    }
+  }
+  window.addEventListener('error', (e) => logError(e.error || e.message));
+  window.addEventListener('unhandledrejection', (e) => logError(e.reason));
+
   let originalOverflow = null;
   let originalScrollBehavior = null;
   let fixedHeaderEls = [];
@@ -137,22 +163,39 @@
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!message || typeof message !== 'object') return false;
 
+    // Each handler is wrapped so a failure logs a precise, contextual
+    // message to diagnostics AND still responds ok:false — without this,
+    // an uncaught error here would leave the background orchestrator's
+    // sendToTab() promise hanging instead of failing cleanly.
     if (message.type === MSG.PREPARE_PAGE) {
-      const data = prepare();
-      sendResponse({ ok: true, data });
+      try {
+        const data = prepare();
+        sendResponse({ ok: true, data });
+      } catch (err) {
+        logError(err);
+        sendResponse({ ok: false, error: String(err && err.message || err) });
+      }
       return true;
     }
 
     if (message.type === MSG.SCROLL_TO) {
-      scrollToAndSettle(message.y).then((data) => {
-        sendResponse({ ok: true, data });
-      });
+      scrollToAndSettle(message.y)
+        .then((data) => sendResponse({ ok: true, data }))
+        .catch((err) => {
+          logError(err);
+          sendResponse({ ok: false, error: String(err && err.message || err) });
+        });
       return true; // async response
     }
 
     if (message.type === MSG.RESTORE_PAGE) {
-      restore();
-      sendResponse({ ok: true });
+      try {
+        restore();
+        sendResponse({ ok: true });
+      } catch (err) {
+        logError(err);
+        sendResponse({ ok: false, error: String(err && err.message || err) });
+      }
       return true;
     }
 

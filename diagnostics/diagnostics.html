@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>SnapFull Diagnostics</title>
+  <link rel="stylesheet" href="diagnostics.css">
+</head>
+<body>
+  <main>
+    <header>
+      <h1>SnapFull Diagnostics</h1>
+      <p class="hint">
+        This is a hidden, local-only panel for troubleshooting. Nothing on
+        this page is ever sent anywhere automatically — it only reads what's
+        already stored on this device. Use "Copy Report" to paste it
+        somewhere yourself if you need to.
+      </p>
+    </header>
+
+    <section class="card">
+      <h2>Overview</h2>
+      <dl id="overview-list" class="kv-list"></dl>
+    </section>
+
+    <section class="card">
+      <h2>Recent captures</h2>
+      <ul id="capture-list" class="entry-list"></ul>
+    </section>
+
+    <section class="card">
+      <h2>Recent errors</h2>
+      <ul id="error-list" class="entry-list"></ul>
+    </section>
+
+    <div class="actions">
+      <button id="copy-btn" class="btn primary">Copy Report</button>
+      <span id="copy-msg" class="hint" aria-live="polite"></span>
+    </div>
+  </main>
+
+  <script src="diagnostics.js" type="module"></script>
+</body>
+</html>

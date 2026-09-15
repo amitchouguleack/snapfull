@@ -69,7 +69,18 @@ export const STORAGE_KEYS = {
   USAGE_DATE: 'snapfull:usage:date',
   LICENSE_CACHE: 'snapfull:license:cache',
   PENDING_CAPTURE: 'snapfull:pending-capture',
+  // Hidden diagnostics (see shared/diagnostics.js) — purely local, read only
+  // by the diagnostics tab, never transmitted anywhere.
+  ERROR_LOG: 'snapfull:diagnostics:errors',
+  CAPTURE_LOG: 'snapfull:diagnostics:captures',
 };
+
+// content-scripts/scroll-controller.js can't import this module (it's
+// injected as a classic, non-module script — see the comment at the top of
+// that file), so it duplicates STORAGE_KEYS.ERROR_LOG and this cap as literal
+// values. Keep them in sync if either ever changes here.
+export const MAX_ERROR_LOG_ENTRIES = 20;
+export const MAX_CAPTURE_LOG_ENTRIES = 10;
 
 // Gumroad's /v2/licenses/verify endpoint accepts either product_id or
 // product_permalink to identify the product. We use product_id — it's the

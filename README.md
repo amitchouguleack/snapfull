@@ -47,8 +47,30 @@ popup/                               capture trigger + free-tier counter
 review/                              crop / redact / annotate / export UI
 licensing/license.js                 Gumroad verify + grace-period cache
 options/                             license key entry
-shared/                              constants, filename sanitizer, PDF writer
+diagnostics/                         hidden local-only troubleshooting panel
+shared/                              constants, filename sanitizer, PDF writer, diagnostics
 ```
+
+### Hidden diagnostics panel (developer-only)
+
+Click the "SnapFull" logo in the popup **6 times within ~3 seconds** to open
+a diagnostics tab. It's local-only troubleshooting, not a product feature —
+no visual hint it exists, nothing about using it is itself logged anywhere.
+
+- **What it shows**, all read from `chrome.storage.local` and translated
+  into plain English: the last ~20 errors from the background service
+  worker, content script, offscreen stitcher, and review screen; the last
+  ~10 capture attempts (success/fail, tile count); current plan status and
+  when it was last checked; extension and Chrome version.
+- **"Copy Report"** puts all of that as one plain-text block on the
+  clipboard — the only thing that ever happens on click. Nothing is ever
+  sent anywhere automatically; there is no code path in
+  [shared/diagnostics.js](shared/diagnostics.js) that makes a network call,
+  and the license key itself is deliberately excluded from the report (only
+  plan status and a last-checked timestamp are shown).
+- Reading the panel never triggers a live Gumroad check — it reads the
+  cached license status directly rather than calling `checkLicense()`,
+  specifically so opening it can't be the thing that causes a network call.
 
 - **Why an Offscreen Document, not the popup, for stitching:** the popup
   closes if the user clicks away, which would kill an in-progress capture if

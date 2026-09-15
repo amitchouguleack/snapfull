@@ -8,6 +8,7 @@ const usageText = document.getElementById('usage-text');
 const usageRow = document.getElementById('usage-row');
 const upgradeLink = document.getElementById('upgrade-link');
 const optionsLink = document.getElementById('options-link');
+const logo = document.getElementById('logo');
 
 async function refreshStatus() {
   const license = await checkLicense();
@@ -87,6 +88,23 @@ optionsLink.addEventListener('click', (e) => {
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local' && (STORAGE_KEYS.LICENSE_CACHE in changes || STORAGE_KEYS.USAGE_COUNT in changes)) {
     refreshStatus();
+  }
+});
+
+// Hidden diagnostics trigger: 6 clicks on the logo within ~3 seconds opens
+// the diagnostics tab. Deliberately undiscoverable by accident (a stray
+// double-click on the title does nothing) but easy to remember once you
+// know it's there. Nothing about this trigger itself is logged anywhere.
+const LOGO_TAP_COUNT = 6;
+const LOGO_TAP_WINDOW_MS = 3000;
+let logoTapTimestamps = [];
+logo.addEventListener('click', () => {
+  const now = Date.now();
+  logoTapTimestamps = logoTapTimestamps.filter((t) => now - t < LOGO_TAP_WINDOW_MS);
+  logoTapTimestamps.push(now);
+  if (logoTapTimestamps.length >= LOGO_TAP_COUNT) {
+    logoTapTimestamps = [];
+    chrome.tabs.create({ url: chrome.runtime.getURL('diagnostics/diagnostics.html') });
   }
 });
 

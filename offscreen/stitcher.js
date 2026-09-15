@@ -6,6 +6,13 @@
 // you click away" failure class GoFullPage-style extensions are prone to.
 
 import { MSG } from '../shared/constants.js';
+import { installGlobalErrorHandlers, logError } from '../shared/diagnostics.js';
+
+// Hidden, local-only diagnostics (see shared/diagnostics.js). Backstop for
+// anything that slips past the try/catch already around each message
+// handler below. No network call is ever made from this or anywhere
+// diagnostics touches.
+installGlobalErrorHandlers('offscreen');
 
 /** @type {{canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D}[]} */
 let tiles = [];
@@ -77,9 +84,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (!message || typeof message !== 'object') return false;
 
   if (message.type === MSG.OFFSCREEN_INIT) {
-    dpr = message.data.dpr || 1;
-    initTiles(Math.round(message.data.totalWidthPx), message.data.canvasHeights);
-    sendResponse({ ok: true });
+    try {
+      dpr = message.data.dpr || 1;
+      initTiles(Math.round(message.data.totalWidthPx), message.data.canvasHeights);
+      sendResponse({ ok: true });
+    } catch (err) {
+      logError('offscreen', err);
+      sendResponse({ ok: false, error: String(err) });
+    }
     return true;
   }
 
@@ -87,14 +99,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     const { dataUrl, cropTopCss, canvasIndex, yOffset } = message.data;
     drawTileImage(dataUrl, cropTopCss, canvasIndex, yOffset)
       .then(() => sendResponse({ ok: true }))
-      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+      .catch((err) => {
+        logError('offscreen', err);
+        sendResponse({ ok: false, error: String(err) });
+      });
     return true;
   }
 
   if (message.type === MSG.OFFSCREEN_FINISH) {
     finish()
       .then((results) => sendResponse({ ok: true, results }))
-      .catch((err) => sendResponse({ ok: false, error: String(err) }));
+      .catch((err) => {
+        logError('offscreen', err);
+        sendResponse({ ok: false, error: String(err) });
+      });
     return true;
   }
 

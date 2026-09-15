@@ -1,6 +1,12 @@
 import { STORAGE_KEYS, MAX_DISPLAY_DIMENSION } from '../shared/constants.js';
 import { checkLicense } from '../licensing/license.js';
 import { buildPdfFromJpegPages } from '../shared/pdf-export.js';
+import { installGlobalErrorHandlers, logError } from '../shared/diagnostics.js';
+
+// Hidden, local-only diagnostics (see shared/diagnostics.js). Backstop for
+// anything that slips past this file's own try/catch points below. No
+// network call is ever made from this or anywhere diagnostics touches.
+installGlobalErrorHandlers('review');
 
 // Two canvases, on purpose:
 //
@@ -51,24 +57,30 @@ function setStatus(text, isError) {
 }
 
 async function init() {
-  const stored = await chrome.storage.local.get(STORAGE_KEYS.PENDING_CAPTURE);
-  const pending = stored[STORAGE_KEYS.PENDING_CAPTURE];
-  if (!pending || !pending.tiles || !pending.tiles.length) {
-    setStatus('No capture found. Close this tab and capture again from the toolbar popup.', true);
-    return;
+  try {
+    const stored = await chrome.storage.local.get(STORAGE_KEYS.PENDING_CAPTURE);
+    const pending = stored[STORAGE_KEYS.PENDING_CAPTURE];
+    if (!pending || !pending.tiles || !pending.tiles.length) {
+      setStatus('No capture found. Close this tab and capture again from the toolbar popup.', true);
+      logError('review', 'No capture found');
+      return;
+    }
+    tiles = pending.tiles;
+    filenameBase = pending.filenameBase || filenameBase;
+
+    await refreshLicenseStatus();
+
+    if (tiles.length > 1) {
+      tileNav.hidden = false;
+    }
+
+    await loadTile(0);
+    wireUp();
+    wirePlanRefresh();
+  } catch (err) {
+    logError('review', err);
+    setStatus('Something went wrong loading this capture: ' + String(err && err.message || err), true);
   }
-  tiles = pending.tiles;
-  filenameBase = pending.filenameBase || filenameBase;
-
-  await refreshLicenseStatus();
-
-  if (tiles.length > 1) {
-    tileNav.hidden = false;
-  }
-
-  await loadTile(0);
-  wireUp();
-  wirePlanRefresh();
 }
 
 // Re-reads the license and updates every paid-gated control's lock icon to
@@ -383,25 +395,30 @@ async function exportCurrent(format) {
     return;
   }
 
-  const finalCanvas = withWatermark(source);
-  const suffix = tiles.length > 1 ? `-part${tileIndex + 1}` : '';
+  try {
+    const finalCanvas = withWatermark(source);
+    const suffix = tiles.length > 1 ? `-part${tileIndex + 1}` : '';
 
-  if (format === 'png') {
-    const blob = await canvasToBlob(finalCanvas, 'image/png');
-    await downloadBlob(blob, `${filenameBase}${suffix}.png`);
-    setStatus('PNG downloaded.');
-  } else if (format === 'jpeg') {
-    const blob = await canvasToBlob(finalCanvas, 'image/jpeg', 0.92);
-    await downloadBlob(blob, `${filenameBase}${suffix}.jpg`);
-    setStatus('JPEG downloaded.');
-  } else if (format === 'pdf') {
-    const blob = await canvasToBlob(finalCanvas, 'image/jpeg', 0.9);
-    const jpegBytes = new Uint8Array(await blob.arrayBuffer());
-    const pdfBlob = buildPdfFromJpegPages([
-      { jpegBytes, widthPx: finalCanvas.width, heightPx: finalCanvas.height },
-    ]);
-    await downloadBlob(pdfBlob, `${filenameBase}${suffix}.pdf`);
-    setStatus('PDF downloaded.');
+    if (format === 'png') {
+      const blob = await canvasToBlob(finalCanvas, 'image/png');
+      await downloadBlob(blob, `${filenameBase}${suffix}.png`);
+      setStatus('PNG downloaded.');
+    } else if (format === 'jpeg') {
+      const blob = await canvasToBlob(finalCanvas, 'image/jpeg', 0.92);
+      await downloadBlob(blob, `${filenameBase}${suffix}.jpg`);
+      setStatus('JPEG downloaded.');
+    } else if (format === 'pdf') {
+      const blob = await canvasToBlob(finalCanvas, 'image/jpeg', 0.9);
+      const jpegBytes = new Uint8Array(await blob.arrayBuffer());
+      const pdfBlob = buildPdfFromJpegPages([
+        { jpegBytes, widthPx: finalCanvas.width, heightPx: finalCanvas.height },
+      ]);
+      await downloadBlob(pdfBlob, `${filenameBase}${suffix}.pdf`);
+      setStatus('PDF downloaded.');
+    }
+  } catch (err) {
+    logError('review', err);
+    setStatus(`Could not export ${format.toUpperCase()}: ` + String(err && err.message || err), true);
   }
 }
 
@@ -412,6 +429,7 @@ async function copyToClipboard() {
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     setStatus('Copied to clipboard.');
   } catch (err) {
+    logError('review', err);
     setStatus('Could not copy to clipboard: ' + String(err && err.message || err), true);
   }
 }
@@ -434,10 +452,16 @@ function wireUp() {
   });
 
   prevTileBtn.addEventListener('click', () => {
-    if (tileIndex > 0) loadTile(tileIndex - 1);
+    if (tileIndex > 0) loadTile(tileIndex - 1).catch((err) => {
+      logError('review', err);
+      setStatus('Could not load that part of the capture.', true);
+    });
   });
   nextTileBtn.addEventListener('click', () => {
-    if (tileIndex < tiles.length - 1) loadTile(tileIndex + 1);
+    if (tileIndex < tiles.length - 1) loadTile(tileIndex + 1).catch((err) => {
+      logError('review', err);
+      setStatus('Could not load that part of the capture.', true);
+    });
   });
 }
 
