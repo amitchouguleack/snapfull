@@ -77,8 +77,11 @@ body {
   box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--accent) 55%, transparent);
 }
 
-.tool-btn[data-paid="1"]::after,
-.export-btn[data-paid="1"]::after {
+/* The lock only appears once review.js has actually confirmed the user is
+   on the free plan (see applyPlanUI) — [data-paid="1"] alone just marks
+   "this control belongs to the paid tier", it is not itself a lock state. */
+.tool-btn.locked::after,
+.export-btn.locked::after {
   content: " 🔒";
 }
 

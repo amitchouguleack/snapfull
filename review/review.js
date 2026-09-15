@@ -60,8 +60,7 @@ async function init() {
   tiles = pending.tiles;
   filenameBase = pending.filenameBase || filenameBase;
 
-  const license = await checkLicense();
-  isPaid = license.plan === 'paid';
+  await refreshLicenseStatus();
 
   if (tiles.length > 1) {
     tileNav.hidden = false;
@@ -69,6 +68,45 @@ async function init() {
 
   await loadTile(0);
   wireUp();
+  wirePlanRefresh();
+}
+
+// Re-reads the license and updates every paid-gated control's lock icon to
+// match. Called on load, and again whenever the plan could plausibly have
+// changed while this tab stayed open (activating a key on the options page
+// doesn't reload this tab, so a one-time read in init() alone goes stale the
+// moment someone activates a license in another tab).
+async function refreshLicenseStatus() {
+  const license = await checkLicense();
+  isPaid = license.plan === 'paid';
+  applyPlanUI();
+}
+
+// The lock icon is CSS driven off a `.locked` class (see review.css) — the
+// static `data-paid="1"` markup only marks which controls are paid-tier, it
+// was never itself conditioned on the actual plan. This is what keeps the
+// icon in sync with `isPaid` instead of always showing regardless of plan.
+function applyPlanUI() {
+  document.querySelectorAll('[data-paid="1"]').forEach((el) => {
+    el.classList.toggle('locked', !isPaid);
+  });
+}
+
+function wirePlanRefresh() {
+  // Fires when options.js activates/clears a license in chrome.storage.local
+  // — catches the review tab even if it's been open the whole time.
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName === 'local' && STORAGE_KEYS.LICENSE_CACHE in changes) {
+      refreshLicenseStatus();
+    }
+  });
+  // Belt-and-suspenders: also re-check whenever this tab regains focus, in
+  // case the license cache changed via a path that didn't fire onChanged
+  // (e.g. the grace-period/recheck logic evaluating differently now that
+  // time has passed).
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshLicenseStatus();
+  });
 }
 
 async function loadTile(index) {
