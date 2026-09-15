@@ -1,4 +1,4 @@
-import { GUMROAD_PRODUCT_URL } from '../shared/constants.js';
+import { GUMROAD_PRODUCT_URL, STORAGE_KEYS } from '../shared/constants.js';
 import { checkLicense, activateLicense, clearLicense } from '../licensing/license.js';
 
 const planStatus = document.getElementById('plan-status');
@@ -43,6 +43,18 @@ clearBtn.addEventListener('click', async () => {
   licenseInput.value = '';
   licenseMessage.textContent = 'License key removed.';
   await render();
+});
+
+// Activate/Clear already call render() directly, but this page can also
+// stay open while checkLicense()'s routine 24h recheck (triggered from a
+// capture in another tab) silently rewrites the cache — e.g. a grace period
+// lapsing, or Gumroad reporting a cancellation. Without this, the plan
+// status text shown here would go stale exactly the way review.js's lock
+// icons used to.
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local' && STORAGE_KEYS.LICENSE_CACHE in changes) {
+    render();
+  }
 });
 
 render();

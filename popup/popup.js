@@ -77,4 +77,17 @@ optionsLink.addEventListener('click', (e) => {
   chrome.runtime.openOptionsPage();
 });
 
+// The popup is normally short-lived (recreated fresh each time it opens, so
+// refreshStatus() on load is usually enough on its own) but it can stay open
+// while the user activates a license in another tab — e.g. clicking
+// "Options" opens options.html without necessarily closing this popup.
+// Without this, the Free/Paid badge and the capture-button gating would show
+// whatever was true when the popup happened to open, same class of bug as
+// review.js's lock icons before that was fixed.
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName === 'local' && (STORAGE_KEYS.LICENSE_CACHE in changes || STORAGE_KEYS.USAGE_COUNT in changes)) {
+    refreshStatus();
+  }
+});
+
 refreshStatus();
