@@ -1,9 +1,27 @@
-import { STORAGE_KEYS } from '../shared/constants.js';
+import { STORAGE_KEYS, MAX_DISPLAY_DIMENSION } from '../shared/constants.js';
 import { checkLicense } from '../licensing/license.js';
 import { buildPdfFromJpegPages } from '../shared/pdf-export.js';
 
-const canvas = document.getElementById('edit-canvas');
-const ctx = canvas.getContext('2d');
+// Two canvases, on purpose:
+//
+// - `source` holds the true, full-resolution pixel data (could be tens of
+//   thousands of device pixels tall for a long page) and is NEVER appended
+//   to the DOM. All edits (crop/redact/highlight/arrow/text) and all exports
+//   read from and write to this one — it's the only canvas that has to be
+//   pixel-accurate.
+// - `display` (#edit-canvas) is the one actually painted on screen, capped
+//   to MAX_DISPLAY_DIMENSION and redrawn from `source` after each committed
+//   edit. A <canvas> that's appended to the live DOM gets composited by the
+//   GPU, which has its own (usually much lower) max texture size than the 2D
+//   canvas API's own backing-store limit — exceeding it doesn't error, it
+//   just paints as corrupted noise. `source` never gets composited (it's
+//   never in the DOM), so it has no such ceiling; `display` needs one.
+const display = document.getElementById('edit-canvas');
+const displayCtx = display.getContext('2d');
+const source = document.createElement('canvas');
+const sourceCtx = source.getContext('2d');
+let displayScale = 1; // display px per source px, always <= 1
+
 const statusMsg = document.getElementById('status-msg');
 const undoBtn = document.getElementById('undo-btn');
 const applyCropBtn = document.getElementById('apply-crop-btn');
@@ -20,9 +38,10 @@ let filenameBase = 'snapfull-capture';
 let isPaid = false;
 
 let activeTool = null; // 'crop' | 'redact' | 'highlight' | 'arrow' | 'text'
-let dragStart = null;
-let liveOverlay = null; // canvas ImageData snapshot to restore while dragging preview
-const undoStack = []; // ImageData snapshots, capped
+let dragStart = null; // display-space point
+let liveOverlay = null; // display canvas ImageData snapshot, restored while dragging a preview
+const undoStack = []; // full-resolution `source` ImageData snapshots, capped
+let pendingCropRect = null; // display-space rect, committed by "Apply crop"
 
 const MAX_UNDO = 15;
 
@@ -57,9 +76,9 @@ async function loadTile(index) {
   await new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx.drawImage(img, 0, 0);
+      source.width = img.width;
+      source.height = img.height;
+      sourceCtx.drawImage(img, 0, 0);
       resolve();
     };
     img.onerror = reject;
@@ -69,11 +88,26 @@ async function loadTile(index) {
   tileLabel.textContent = `Part ${index + 1} / ${tiles.length}`;
   undoStack.length = 0;
   updateUndoBtn();
+  syncDisplayFromSource();
+}
+
+// Recomputes the capped display size and repaints the on-screen canvas from
+// the full-resolution source. Called after every committed edit rather than
+// on every pointer move — it's one drawImage call, cheap even for a very
+// tall source, and keeps the live-drag preview (which never touches
+// `source`) as the only thing running per-frame.
+function syncDisplayFromSource() {
+  displayScale = Math.min(1, MAX_DISPLAY_DIMENSION / source.width, MAX_DISPLAY_DIMENSION / source.height);
+  display.width = Math.max(1, Math.round(source.width * displayScale));
+  display.height = Math.max(1, Math.round(source.height * displayScale));
+  displayCtx.imageSmoothingEnabled = true;
+  displayCtx.imageSmoothingQuality = 'high';
+  displayCtx.drawImage(source, 0, 0, source.width, source.height, 0, 0, display.width, display.height);
 }
 
 function pushUndoSnapshot() {
   if (undoStack.length >= MAX_UNDO) undoStack.shift();
-  undoStack.push(ctx.getImageData(0, 0, canvas.width, canvas.height));
+  undoStack.push(sourceCtx.getImageData(0, 0, source.width, source.height));
   updateUndoBtn();
 }
 
@@ -84,19 +118,29 @@ function updateUndoBtn() {
 function undo() {
   const snap = undoStack.pop();
   if (!snap) return;
-  canvas.width = snap.width;
-  canvas.height = snap.height;
-  ctx.putImageData(snap, 0, 0);
+  source.width = snap.width;
+  source.height = snap.height;
+  sourceCtx.putImageData(snap, 0, 0);
   updateUndoBtn();
+  syncDisplayFromSource();
 }
 
-function canvasPointFromEvent(e) {
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
+// Pointer coordinates in *display*-canvas space (what the live drag preview
+// draws in). Divide by displayScale to get the equivalent point on `source`.
+function displayPointFromEvent(e) {
+  const rect = display.getBoundingClientRect();
+  const scaleX = display.width / rect.width;
+  const scaleY = display.height / rect.height;
   return {
     x: Math.round((e.clientX - rect.left) * scaleX),
     y: Math.round((e.clientY - rect.top) * scaleY),
+  };
+}
+
+function toSourcePoint(displayPoint) {
+  return {
+    x: Math.round(displayPoint.x / displayScale),
+    y: Math.round(displayPoint.y / displayScale),
   };
 }
 
@@ -106,6 +150,15 @@ function normalizedRect(a, b) {
     y: Math.min(a.y, b.y),
     w: Math.abs(b.x - a.x),
     h: Math.abs(b.y - a.y),
+  };
+}
+
+function toSourceRect(displayRect) {
+  return {
+    x: Math.round(displayRect.x / displayScale),
+    y: Math.round(displayRect.y / displayScale),
+    w: Math.round(displayRect.w / displayScale),
+    h: Math.round(displayRect.h / displayScale),
   };
 }
 
@@ -123,76 +176,82 @@ function setActiveTool(tool, isPaidTool) {
   setStatus(activeTool ? `${activeTool[0].toUpperCase()}${activeTool.slice(1)} tool active — drag on the image.` : '');
 }
 
-let pendingCropRect = null;
-
 function onPointerDown(e) {
   if (!activeTool) return;
-  dragStart = canvasPointFromEvent(e);
-  liveOverlay = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  dragStart = displayPointFromEvent(e);
+  liveOverlay = displayCtx.getImageData(0, 0, display.width, display.height);
 
   if (activeTool === 'text') {
-    placeText(dragStart);
+    placeText(toSourcePoint(dragStart));
     dragStart = null;
     liveOverlay = null;
   }
 }
 
+// Live drag preview draws only on the small `display` canvas — cheap
+// regardless of how tall the underlying page is. Nothing here touches
+// `source`; the real, destructive edit is applied once on pointerup.
 function onPointerMove(e) {
   if (!activeTool || !dragStart || !liveOverlay) return;
-  const current = canvasPointFromEvent(e);
+  const current = displayPointFromEvent(e);
   const rect = normalizedRect(dragStart, current);
 
-  ctx.putImageData(liveOverlay, 0, 0);
-  ctx.save();
+  displayCtx.putImageData(liveOverlay, 0, 0);
+  displayCtx.save();
   if (activeTool === 'crop') {
-    ctx.strokeStyle = '#2563eb';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([6, 4]);
-    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
+    displayCtx.strokeStyle = '#2563eb';
+    displayCtx.lineWidth = 2;
+    displayCtx.setLineDash([6, 4]);
+    displayCtx.strokeRect(rect.x, rect.y, rect.w, rect.h);
     pendingCropRect = rect;
   } else if (activeTool === 'redact') {
-    ctx.fillStyle = '#000';
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    displayCtx.fillStyle = '#000';
+    displayCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
   } else if (activeTool === 'highlight') {
-    ctx.globalAlpha = 0.35;
-    ctx.fillStyle = '#fde047';
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
+    displayCtx.globalAlpha = 0.35;
+    displayCtx.fillStyle = '#fde047';
+    displayCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
   } else if (activeTool === 'arrow') {
-    drawArrow(ctx, dragStart, current);
+    drawArrow(displayCtx, dragStart, current);
   }
-  ctx.restore();
+  displayCtx.restore();
 }
 
 function onPointerUp(e) {
   if (!activeTool || !dragStart) return;
-  const current = canvasPointFromEvent(e);
+  const current = displayPointFromEvent(e);
   const rect = normalizedRect(dragStart, current);
   const moved = rect.w > 2 || rect.h > 2;
 
   if (activeTool === 'crop') {
     // Just leaves the dashed preview + pendingCropRect; "Apply crop" commits it.
   } else if (moved) {
-    // Redact/highlight/arrow are destructive the moment the drag ends: the
-    // pixels drawn during onPointerMove are already baked into the canvas,
-    // so there is no separate "reveal" layer that could leak the original
-    // content — this satisfies the redaction security requirement directly.
-    pushUndoSnapshot_beforeThisStroke();
+    // Commit the destructive edit onto `source`, at source resolution — this
+    // is the pixel data that undo/export actually read, and it's what makes
+    // redaction genuinely destroy the covered pixels rather than just draw
+    // over a small preview copy of them.
+    pushUndoSnapshot();
+    const sourceRect = toSourceRect(rect);
+    sourceCtx.save();
+    if (activeTool === 'redact') {
+      sourceCtx.fillStyle = '#000';
+      sourceCtx.fillRect(sourceRect.x, sourceRect.y, sourceRect.w, sourceRect.h);
+    } else if (activeTool === 'highlight') {
+      sourceCtx.globalAlpha = 0.35;
+      sourceCtx.fillStyle = '#fde047';
+      sourceCtx.fillRect(sourceRect.x, sourceRect.y, sourceRect.w, sourceRect.h);
+    } else if (activeTool === 'arrow') {
+      drawArrow(sourceCtx, toSourcePoint(dragStart), toSourcePoint(current));
+    }
+    sourceCtx.restore();
+    syncDisplayFromSource();
   } else {
     // Click without drag — discard the preview.
-    ctx.putImageData(liveOverlay, 0, 0);
+    displayCtx.putImageData(liveOverlay, 0, 0);
   }
 
   dragStart = null;
   liveOverlay = null;
-}
-
-// We snapshot for undo *before* the stroke, but we only know the stroke
-// "happened" once pointerup fires with real movement — so re-derive the
-// pre-stroke state from liveOverlay (captured at pointerdown) and push that.
-function pushUndoSnapshot_beforeThisStroke() {
-  if (undoStack.length >= MAX_UNDO) undoStack.shift();
-  undoStack.push(liveOverlay);
-  updateUndoBtn();
 }
 
 function drawArrow(context, from, to) {
@@ -213,15 +272,16 @@ function drawArrow(context, from, to) {
   context.fill();
 }
 
-function placeText(point) {
+function placeText(sourcePoint) {
   const text = window.prompt('Text to add:');
   if (!text) return;
   pushUndoSnapshot();
-  ctx.save();
-  ctx.font = '24px -apple-system, Segoe UI, Roboto, sans-serif';
-  ctx.fillStyle = '#dc2626';
-  ctx.fillText(text, point.x, point.y);
-  ctx.restore();
+  sourceCtx.save();
+  sourceCtx.font = '24px -apple-system, Segoe UI, Roboto, sans-serif';
+  sourceCtx.fillStyle = '#dc2626';
+  sourceCtx.fillText(text, sourcePoint.x, sourcePoint.y);
+  sourceCtx.restore();
+  syncDisplayFromSource();
 }
 
 function applyCrop() {
@@ -230,25 +290,28 @@ function applyCrop() {
     return;
   }
   pushUndoSnapshot();
-  const { x, y, w, h } = pendingCropRect;
-  const cropped = ctx.getImageData(x, y, w, h);
-  canvas.width = w;
-  canvas.height = h;
-  ctx.putImageData(cropped, 0, 0);
+  const { x, y, w, h } = toSourceRect(pendingCropRect);
+  const cropped = sourceCtx.getImageData(x, y, w, h);
+  source.width = w;
+  source.height = h;
+  sourceCtx.putImageData(cropped, 0, 0);
   pendingCropRect = null;
   setActiveTool('crop', false); // toggle off
+  syncDisplayFromSource();
   setStatus('Cropped.');
 }
 
-function withWatermark(sourceCanvas) {
-  if (isPaid) return sourceCanvas;
+// Exports always read from `source` (full resolution) — never from
+// `display`, which is a downscaled preview only.
+function withWatermark(srcCanvas) {
+  if (isPaid) return srcCanvas;
   const out = document.createElement('canvas');
-  out.width = sourceCanvas.width;
-  out.height = sourceCanvas.height;
+  out.width = srcCanvas.width;
+  out.height = srcCanvas.height;
   const octx = out.getContext('2d');
-  octx.drawImage(sourceCanvas, 0, 0);
+  octx.drawImage(srcCanvas, 0, 0);
   const label = 'SnapFull';
-  octx.font = `${Math.max(12, Math.round(sourceCanvas.width * 0.015))}px sans-serif`;
+  octx.font = `${Math.max(12, Math.round(srcCanvas.width * 0.015))}px sans-serif`;
   const metrics = octx.measureText(label);
   const pad = 8;
   const x = out.width - metrics.width - pad * 2;
@@ -260,8 +323,8 @@ function withWatermark(sourceCanvas) {
   return out;
 }
 
-function canvasToBlob(sourceCanvas, mime, quality) {
-  return new Promise((resolve) => sourceCanvas.toBlob(resolve, mime, quality));
+function canvasToBlob(srcCanvas, mime, quality) {
+  return new Promise((resolve) => srcCanvas.toBlob(resolve, mime, quality));
 }
 
 async function downloadBlob(blob, filename) {
@@ -282,7 +345,7 @@ async function exportCurrent(format) {
     return;
   }
 
-  const finalCanvas = withWatermark(canvas);
+  const finalCanvas = withWatermark(source);
   const suffix = tiles.length > 1 ? `-part${tileIndex + 1}` : '';
 
   if (format === 'png') {
@@ -306,7 +369,7 @@ async function exportCurrent(format) {
 
 async function copyToClipboard() {
   try {
-    const finalCanvas = withWatermark(canvas);
+    const finalCanvas = withWatermark(source);
     const blob = await canvasToBlob(finalCanvas, 'image/png');
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
     setStatus('Copied to clipboard.');
@@ -320,8 +383,8 @@ function wireUp() {
     btn.addEventListener('click', () => setActiveTool(btn.dataset.tool, btn.dataset.paid === '1'));
   });
 
-  canvas.addEventListener('pointerdown', onPointerDown);
-  canvas.addEventListener('pointermove', onPointerMove);
+  display.addEventListener('pointerdown', onPointerDown);
+  display.addEventListener('pointermove', onPointerMove);
   window.addEventListener('pointerup', onPointerUp);
 
   undoBtn.addEventListener('click', undo);

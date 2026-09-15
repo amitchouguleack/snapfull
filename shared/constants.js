@@ -31,6 +31,18 @@ export const MSG = {
 // in that device-pixel unit — never multiply it by devicePixelRatio again.
 export const MAX_CANVAS_HEIGHT = 32000;
 
+// A *separate*, much lower ceiling for any <canvas> that actually gets
+// painted on screen (appended to the live DOM), as opposed to one that only
+// ever has toBlob()/toDataURL() called on it off-DOM. The backing-store
+// attribute limit above (~32,767px) is what the 2D drawing API tolerates;
+// GPU compositors have their own, usually much smaller, max texture size
+// (commonly 8192-16384px, sometimes less) for anything that's actually
+// rendered. Exceeding it doesn't error — it silently paints as corrupted
+// noise. The review page's on-screen preview canvas must stay under this;
+// full-resolution pixel data for edits/export lives in a separate,
+// never-painted canvas instead. Kept well under the lowest common GPU limit.
+export const MAX_DISPLAY_DIMENSION = 4096;
+
 // DOM stability window: after a scroll step, wait for this many ms with zero
 // mutation events before treating the layout as "settled" and capturing.
 export const STABILITY_QUIET_MS = 150;
