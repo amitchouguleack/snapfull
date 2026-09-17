@@ -26,8 +26,14 @@ README tracks what's actually implemented and what's left.
    → select this folder). Core capture, the review UI, and paid-plan sync
    have each been confirmed working in a real Chrome session — see the
    status table above for exactly what's been tested and what hasn't.
-2. Regenerate proper icons — [icons/](icons/) currently holds programmatically
-   generated placeholders, not real brand art.
+
+Icons ([icons/](icons/)) are a real design now, not a placeholder — a
+capture-frame/viewfinder mark (four corner brackets, the standard
+screenshot-tool glyph) on the brand blue, with content lines inside at
+48px/128px hinting at "page," simplified to just the bracket frame at 16px
+since finer detail doesn't survive that far down. Generated programmatically
+(Pillow) rather than hand-drawn, but it's the intended shipping design, not
+a stand-in.
 
 **Gumroad is live:** SnapFull Pro is a real Gumroad Membership product.
 `GUMROAD_PRODUCT_ID` and `GUMROAD_PRODUCT_URL` in

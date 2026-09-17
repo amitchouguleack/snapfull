@@ -53,7 +53,14 @@ function renderCaptures(captures) {
     ts.textContent = c.tsLabel;
     const body = document.createElement('div');
     if (c.ok) {
-      body.innerHTML = `<span class="entry-ok">Success</span> — ${c.tileCount ?? '?'} piece(s)`;
+      // Built with the DOM API rather than innerHTML, like everything else
+      // in this file — tileCount is always an internally-generated number
+      // (never page content), but there's no reason for this one line to be
+      // the exception to how the rest of the panel stays injection-proof.
+      const status = document.createElement('span');
+      status.className = 'entry-ok';
+      status.textContent = 'Success';
+      body.append(status, document.createTextNode(` — ${c.tileCount ?? '?'} piece(s)`));
     } else {
       const status = document.createElement('span');
       status.className = 'entry-fail';
