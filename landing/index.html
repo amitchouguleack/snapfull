@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>SnapFull — Full-page screenshots, kept on your device</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="SnapFull captures, crops, redacts and exports full-page screenshots entirely on your device — no account, no cloud upload, no lazy-load glitches.">
+<meta name="theme-color" content="#2954E5">
+<link rel="icon" type="image/png" href="favicon.png">
+
+<meta property="og:title" content="SnapFull — Full-page screenshots, kept on your device">
+<meta property="og:description" content="Capture, crop, redact and export full-page screenshots. No cloud, no account, no upload.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=Public+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#F6F7FA;
+    --surface:#FFFFFF;
+    --surface-2:#ECEFF5;
+    --ink:#12131A;
+    --ink-dim:#565B6B;
+    --line:#DBDFE9;
+    --accent:#2954E5;
+    --accent-ink:#FFFFFF;
+    --marquee:#D98C00;
+    --redact:#C22C31;
+    --good:#137A4B;
+    --shadow: 0 1px 2px rgba(18,19,26,0.04), 0 12px 32px -16px rgba(18,19,26,0.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0A0B10;
+      --surface:#14161F;
+      --surface-2:#1B1E2A;
+      --ink:#EDEFF7;
+      --ink-dim:#9AA0B4;
+      --line:#272B3B;
+      --accent:#7C93FF;
+      --accent-ink:#0A0B10;
+      --marquee:#E5A93D;
+      --redact:#FF6B70;
+      --good:#3FCB8C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 20px 48px -20px rgba(0,0,0,0.6);
+    }
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:"Public Sans", -apple-system, "Segoe UI", sans-serif;
+    padding-inline:20px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+  h1,h2,h3{font-family:"Archivo","Public Sans",sans-serif;text-wrap:balance;margin:0;}
+  code,.mono,.badge,.kbd{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+  a{color:inherit;}
+  p{color:var(--ink-dim);line-height:1.6;margin:0;}
+  ::selection{background:var(--accent);color:var(--accent-ink);}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){ *{animation-duration:0.001ms !important; animation-iteration-count:1 !important; transition-duration:0.001ms !important;} }
+
+  /* ---------- nav ---------- */
+  nav{
+    max-width:1040px;margin:0 auto;
+    display:flex;align-items:center;justify-content:space-between;
+    padding-block:20px;
+  }
+  .logo{
+    display:flex;align-items:center;gap:9px;
+    font-family:"Archivo",sans-serif;font-weight:800;font-size:17px;letter-spacing:-0.01em;
+  }
+  .logo .mark{
+    width:20px;height:20px;border-radius:5px;
+    background:var(--accent);
+    position:relative;flex:none;
+  }
+  .logo .mark::after{
+    content:"";position:absolute;inset:5px;
+    border:1.5px solid var(--accent-ink);border-radius:2px;
+    opacity:.9;
+  }
+  nav .links{display:flex;gap:26px;font-size:13.5px;font-weight:500;color:var(--ink-dim);}
+  nav .links a{text-decoration:none;}
+  nav .links a:hover{color:var(--ink);}
+  .nav-cta{
+    font-size:12.5px;font-weight:600;font-family:"IBM Plex Mono",monospace;
+    padding:7px 12px;border:1px solid var(--line);border-radius:7px;
+    text-decoration:none;color:var(--ink-dim);
+  }
+  .nav-cta:hover{border-color:var(--accent);color:var(--accent);}
+  @media (max-width:620px){ nav .links{display:none;} }
+
+  /* ---------- hero ---------- */
+  header.hero{padding-block:34px 56px;}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:7px;
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:500;
+    color:var(--good);letter-spacing:.03em;
+    background:color-mix(in srgb, var(--good) 12%, transparent);
+    border:1px solid color-mix(in srgb, var(--good) 30%, transparent);
+    padding:5px 10px;border-radius:20px;margin-bottom:20px;
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--good);flex:none;}
+  .hero h1{
+    font-size:clamp(34px,5.4vw,58px);font-weight:800;line-height:1.03;letter-spacing:-0.02em;
+    max-width:16ch;
+  }
+  .hero h1 em{font-style:normal;color:var(--accent);}
+  .hero .sub{
+    margin-top:20px;font-size:17px;max-width:46ch;line-height:1.55;
+  }
+  .hero-ctas{display:flex;gap:12px;margin-top:28px;flex-wrap:wrap;}
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;
+    padding:12px 20px;border-radius:9px;font-size:14px;font-weight:600;
+    text-decoration:none;border:1px solid transparent;cursor:pointer;
+  }
+  .btn-primary{background:var(--accent);color:var(--accent-ink);}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-ghost{background:var(--surface);border-color:var(--line);color:var(--ink);}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* ---------- capture mock ---------- */
+  .capture-frame{
+    margin-top:44px;border-radius:14px;overflow:hidden;
+    background:var(--surface);border:1px solid var(--line);box-shadow:var(--shadow);
+  }
+  .chrome-bar{
+    display:flex;align-items:center;gap:14px;
+    padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2);
+  }
+  .dots{display:flex;gap:6px;}
+  .dots span{width:9px;height:9px;border-radius:50%;background:var(--line);}
+  .addr{
+    flex:1;font-family:"IBM Plex Mono",monospace;font-size:11.5px;color:var(--ink-dim);
+    background:var(--surface);border:1px solid var(--line);border-radius:6px;
+    padding:5px 10px;
+  }
+  .capture-body{
+    position:relative;height:340px;overflow:hidden;
+    background:
+      linear-gradient(var(--surface-2) 1px, transparent 1px) 0 0/100% 34px;
+  }
+  .page-mock{position:absolute;inset:0;padding:26px 26px 0;}
+  .pm-line{height:11px;border-radius:3px;background:var(--surface-2);margin-bottom:14px;}
+  .pm-line.w1{width:72%;} .pm-line.w2{width:94%;} .pm-line.w3{width:58%;}
+  .pm-block{height:78px;border-radius:8px;background:var(--surface-2);margin-bottom:16px;}
+  .pm-row{display:flex;gap:14px;margin-bottom:16px;}
+  .pm-row .pm-block{flex:1;height:56px;margin-bottom:0;}
+
+  .scanline{
+    position:absolute;left:0;right:0;height:2px;
+    background:var(--accent);box-shadow:0 0 14px 2px color-mix(in srgb, var(--accent) 70%, transparent);
+    animation: scan 4.5s cubic-bezier(.65,0,.35,1) infinite;
+  }
+  @keyframes scan{
+    0%{top:0; opacity:1;}
+    38%{top:calc(100% - 2px); opacity:1;}
+    44%{opacity:0;}
+    50%{top:0; opacity:0;}
+    54%{opacity:1;}
+    100%{top:0; opacity:1;}
+  }
+  .readout{
+    position:absolute;top:14px;right:14px;
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;
+    background:color-mix(in srgb, var(--ink) 88%, transparent);
+    color:var(--bg);
+    border-radius:6px;padding:6px 9px;line-height:1.5;
+    box-shadow:var(--shadow);
+  }
+  .readout .ok{color:#3FCB8C;}
+
+  .marquee-box{
+    position:absolute;border:1.5px dashed var(--marquee);border-radius:4px;
+    background:color-mix(in srgb, var(--marquee) 10%, transparent);
+  }
+
+  /* ---------- section shell ---------- */
+  section{padding-block:64px;border-top:1px solid var(--line);}
+  .kicker{
+    font-family:"IBM Plex Mono",monospace;font-size:11.5px;font-weight:500;
+    color:var(--accent);letter-spacing:.06em;text-transform:uppercase;margin-bottom:10px;
+  }
+  .section-head h2{font-size:clamp(24px,3.2vw,32px);letter-spacing:-0.01em;max-width:22ch;}
+  .section-head p{margin-top:12px;font-size:15px;max-width:56ch;}
+
+  /* ---------- gap annotations ---------- */
+  .gaps{
+    display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:36px;
+  }
+  @media (max-width:760px){ .gaps{grid-template-columns:1fr;} }
+  .gap-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:20px;position:relative;
+  }
+  .gap-num{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-dim);
+    display:flex;align-items:center;gap:8px;margin-bottom:14px;
+  }
+  .gap-num .tag{
+    font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;
+    background:color-mix(in srgb, var(--redact) 14%, transparent);
+    color:var(--redact);
+  }
+  .gap-card h3{font-size:16px;font-weight:700;margin-bottom:8px;}
+  .gap-card p{font-size:13.5px;}
+  .gap-fix{
+    margin-top:14px;padding-top:14px;border-top:1px dashed var(--line);
+    font-size:13px;color:var(--good);font-weight:500;
+    display:flex;gap:7px;
+  }
+  .gap-fix::before{content:"→";}
+
+  /* ---------- how it works strip ---------- */
+  .steps{display:flex;flex-direction:column;gap:0;margin-top:36px;}
+  .step{
+    display:grid;grid-template-columns:56px 1fr;gap:20px;
+    padding-block:22px;border-top:1px solid var(--line);
+  }
+  .step:first-child{border-top:none;}
+  .step-idx{
+    font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--ink-dim);
+    padding-top:2px;
+  }
+  .step h3{font-size:16px;font-weight:700;margin-bottom:6px;}
+  .step p{font-size:14px;max-width:58ch;}
+  .step .code{
+    display:inline-block;margin-top:10px;font-family:"IBM Plex Mono",monospace;
+    font-size:12px;background:var(--surface-2);border:1px solid var(--line);
+    border-radius:6px;padding:8px 11px;color:var(--ink-dim);
+  }
+
+  /* ---------- redact demo ---------- */
+  .redact-demo{
+    display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:36px;
+  }
+  @media (max-width:700px){ .redact-demo{grid-template-columns:1fr;} }
+  .redact-panel{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:18px;
+  }
+  .redact-panel .label{
+    font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--ink-dim);
+    margin-bottom:12px;display:block;letter-spacing:.03em;text-transform:uppercase;
+  }
+  .redact-row{display:flex;gap:10px;margin-bottom:9px;align-items:center;}
+  .redact-row .field{
+    height:13px;border-radius:3px;background:var(--surface-2);flex:1;
+  }
+  .redact-row .blackout{
+    height:20px;border-radius:3px;background:var(--redact);flex:1;
+    position:relative;
+  }
+  .redact-row .blur{
+    height:20px;border-radius:3px;flex:1;
+    background:repeating-linear-gradient(45deg, var(--surface-2), var(--surface-2) 4px, var(--line) 4px, var(--line) 8px);
+  }
+
+  /* ---------- pricing ---------- */
+  .pricing{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:36px;}
+  @media (max-width:700px){ .pricing{grid-template-columns:1fr;} }
+  .plan{
+    background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px;
+  }
+  .plan.featured{border-color:var(--accent);box-shadow:var(--shadow);position:relative;}
+  .plan-name{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;}
+  .plan-price{font-family:"Archivo",sans-serif;font-weight:800;font-size:34px;margin-top:8px;letter-spacing:-0.01em;}
+  .plan-price span{font-size:14px;font-weight:500;color:var(--ink-dim);}
+  .plan-list{list-style:none;margin:20px 0 0;padding:0;display:flex;flex-direction:column;gap:11px;}
+  .plan-list li{
+    font-size:13.5px;color:var(--ink);display:flex;gap:9px;align-items:baseline;
+  }
+  .plan-list li::before{content:"—";color:var(--ink-dim);flex:none;}
+  .plan-list li.dim{color:var(--ink-dim);}
+  .plan-list li.dim::before{content:"×";color:var(--line);}
+
+  /* ---------- privacy ---------- */
+  .privacy-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:36px;}
+  @media (max-width:760px){ .privacy-grid{grid-template-columns:1fr;} }
+  .priv-card{padding:0;}
+  .priv-card .n{font-family:"IBM Plex Mono",monospace;font-size:24px;color:var(--accent);font-weight:500;}
+  .priv-card h3{font-size:14.5px;font-weight:700;margin-top:8px;}
+  .priv-card p{font-size:13px;margin-top:6px;}
+
+  /* ---------- footer ---------- */
+  footer{
+    padding-block:40px 60px;border-top:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:24px;
+  }
+  footer .f-brand p{font-size:13px;margin-top:8px;max-width:34ch;}
+  footer .f-links{display:flex;gap:44px;flex-wrap:wrap;}
+  footer .f-col h4{
+    font-family:"IBM Plex Mono",monospace;font-size:10.5px;color:var(--ink-dim);
+    text-transform:uppercase;letter-spacing:.05em;margin:0 0 10px;font-weight:500;
+  }
+  footer .f-col a{
+    display:block;font-size:13px;color:var(--ink);text-decoration:none;margin-bottom:8px;
+  }
+  footer .f-col a:hover{color:var(--accent);}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><span class="mark"></span>SnapFull</div>
+  <div class="links">
+    <a href="#gaps">Why</a>
+    <a href="#how">How it works</a>
+    <a href="#redact">Redaction</a>
+    <a href="#pricing">Pricing</a>
+    <a href="#privacy">Privacy</a>
+  </div>
+  <a class="nav-cta" href="mailto:toomuchcoffee9327@gmail.com?subject=Notify%20me%20—%20SnapFull%20launch">Get notified</a>
+</nav>
+
+<div class="wrap">
+  <header class="hero">
+    <span class="eyebrow">Private beta · zero-cloud by design</span>
+    <h1>Full-page screenshots that don't <em>upload</em> anything.</h1>
+    <p class="sub">SnapFull captures, crops, redacts and exports entirely on your device. No account, no cloud link, no lazy-load glitches — the three things the popular full-page tools still get wrong.</p>
+    <div class="hero-ctas">
+      <a class="btn btn-primary" href="mailto:toomuchcoffee9327@gmail.com?subject=Notify%20me%20—%20SnapFull%20launch">Get notified at launch</a>
+      <a class="btn btn-ghost" href="#gaps">See what's different ↓</a>
+    </div>
+
+    <div class="capture-frame">
+      <div class="chrome-bar">
+        <div class="dots"><span></span><span></span><span></span></div>
+        <div class="addr">example.com/feed — capturing full page…</div>
+      </div>
+      <div class="capture-body">
+        <div class="page-mock">
+          <div class="pm-line w1"></div>
+          <div class="pm-line w2"></div>
+          <div class="pm-block"></div>
+          <div class="pm-row"><div class="pm-block"></div><div class="pm-block"></div></div>
+          <div class="pm-line w3"></div>
+          <div class="pm-line w1"></div>
+          <div class="pm-block"></div>
+        </div>
+        <div class="marquee-box" style="left:26px; top:46px; width:150px; height:11px;"></div>
+        <div class="scanline"></div>
+        <div class="readout">
+          scrollY <span class="ok">1,840px</span><br>
+          mutations <span class="ok">quiet 150ms</span><br>
+          tile <span class="ok">3 / 5</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <section id="gaps">
+    <div class="section-head">
+      <div class="kicker">Three fixes, not a rebuild</div>
+      <h2>Same tool you already know how to use. Three annoyances gone.</h2>
+      <p>SnapFull isn't a reinvention — it's the full-page capture workflow you're used to, with the specific things that break trust or break on real pages fixed.</p>
+    </div>
+
+    <div class="gaps">
+      <div class="gap-card">
+        <div class="gap-num">01 <span class="tag">Capture</span></div>
+        <h3>Seams on lazy-loaded feeds</h3>
+        <p>Fixed-delay scrolling snapshots mid-render on infinite feeds and image grids, leaving visible tears and half-loaded tiles in the stitched image.</p>
+        <div class="gap-fix">MutationObserver waits for the DOM to actually go quiet before each capture.</div>
+      </div>
+      <div class="gap-card">
+        <div class="gap-num">02 <span class="tag">Account</span></div>
+        <h3>Forced upload for a shareable link</h3>
+        <p>Cropping, PDF export or a share link routes your screenshot through someone else's server and asks you to sign in first.</p>
+        <div class="gap-fix">Everything — crop, export, PDF — runs locally. No login wall, ever.</div>
+      </div>
+      <div class="gap-card">
+        <div class="gap-num">03 <span class="tag">Privacy</span></div>
+        <h3>No way to redact before saving</h3>
+        <p>You screenshot a dashboard, an invoice, an email thread for a bug report — and the sensitive cell is just sitting there in the PNG.</p>
+        <div class="gap-fix">Built-in redact tool destroys the pixel data, not just covers it.</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="how">
+    <div class="section-head">
+      <div class="kicker">How capture works</div>
+      <h2>Stability-aware capture, not a stopwatch.</h2>
+      <p>An Offscreen Document — not the popup — drives the whole capture, so closing the popup mid-scroll can't kill it.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-idx">01</div>
+        <div>
+          <h3>Scroll one viewport, then wait</h3>
+          <p>A content script scrolls the page and starts watching for DOM mutations — new images, injected feed items, layout shifts from lazy content.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-idx">02</div>
+        <div>
+          <h3>Capture only once it's quiet</h3>
+          <p>The tile is captured after 150ms with zero mutations — capped at a 2-second max wait, so a page that never fully settles can't hang the capture forever.</p>
+          <span class="code">quiet ≥ 150ms · hard cap 2000ms per step</span>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-idx">03</div>
+        <div>
+          <h3>Stitch in an Offscreen Document</h3>
+          <p>Canvas work happens off the popup entirely, in a document that survives you clicking away. Pages taller than Chrome's ~32,767px canvas ceiling are tiled into numbered parts instead of truncating.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-idx">04</div>
+        <div>
+          <h3>Sticky headers cropped, not repeated</h3>
+          <p>Fixed/sticky nav bars are detected once and cropped out of every tile after the first, so your header doesn't repeat down the whole page.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="redact">
+    <div class="section-head">
+      <div class="kicker">Before you save</div>
+      <h2>Redaction that actually removes the pixels.</h2>
+      <p>A black box drawn <em>over</em> data still has that data underneath it — recoverable by anyone who inspects the file. SnapFull's redact tool paints straight onto the capture canvas, overwriting the source pixels for good.</p>
+    </div>
+    <div class="redact-demo">
+      <div class="redact-panel">
+        <span class="label">Typical overlay redaction</span>
+        <div class="redact-row"><div class="field" style="width:30%"></div><div class="field"></div></div>
+        <div class="redact-row"><div class="field" style="width:24%"></div><div class="blur"></div></div>
+        <div class="redact-row"><div class="field" style="width:38%"></div><div class="field"></div></div>
+        <p style="margin-top:14px;font-size:12.5px;">Original pixels still sit underneath — recoverable with basic image tools.</p>
+      </div>
+      <div class="redact-panel">
+        <span class="label">SnapFull redact</span>
+        <div class="redact-row"><div class="field" style="width:30%"></div><div class="field"></div></div>
+        <div class="redact-row"><div class="field" style="width:24%"></div><div class="blackout"></div></div>
+        <div class="redact-row"><div class="field" style="width:38%"></div><div class="field"></div></div>
+        <p style="margin-top:14px;font-size:12.5px;color:var(--good);">Pixels overwritten on the canvas itself. Nothing left to recover.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing">
+    <div class="section-head">
+      <div class="kicker">Pricing</div>
+      <h2>One lever: capped and watermarked, or not.</h2>
+      <p>No feature is hidden behind a paywall — the free plan does real work. Paid removes the cap and the watermark, and unlocks annotate and multi-format export.</p>
+    </div>
+    <div class="pricing">
+      <div class="plan">
+        <div class="plan-name">Free</div>
+        <div class="plan-price">$0</div>
+        <ul class="plan-list">
+          <li>5 captures / day</li>
+          <li>Stability-aware lazy-load handling</li>
+          <li>Crop</li>
+          <li>Redact / blur</li>
+          <li>PNG export &amp; copy to clipboard</li>
+          <li class="dim">Arrow / text annotate</li>
+          <li class="dim">JPEG / PDF export</li>
+          <li class="dim">No watermark</li>
+        </ul>
+      </div>
+      <div class="plan featured">
+        <div class="plan-name">Paid</div>
+        <div class="plan-price">$3.99<span>/mo</span></div>
+        <p style="font-size:12.5px;margin-top:4px;">or $24.99/yr</p>
+        <ul class="plan-list">
+          <li>Unlimited captures</li>
+          <li>Stability-aware lazy-load handling</li>
+          <li>Crop, redact, highlight, arrow, text</li>
+          <li>PNG, JPEG &amp; multi-page PDF export</li>
+          <li>Copy to clipboard</li>
+          <li>No watermark</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section id="privacy">
+    <div class="section-head">
+      <div class="kicker">Privacy</div>
+      <h2>One outbound request in the entire extension.</h2>
+      <p>Licensing runs on Gumroad, not a server we operate — so there's no backend to breach and nothing to leak.</p>
+    </div>
+    <div class="privacy-grid">
+      <div class="priv-card">
+        <div class="n">1</div>
+        <h3>Network call, total</h3>
+        <p>A license check against Gumroad's API — and only if you've entered a license key. Screenshots never leave your device.</p>
+      </div>
+      <div class="priv-card">
+        <div class="n">0</div>
+        <h3>Servers we run</h3>
+        <p>State lives in chrome.storage.local: license cache, usage counts, preferences. No database, no uptime to babysit.</p>
+      </div>
+      <div class="priv-card">
+        <div class="n">&lt;all_urls&gt;</div>
+        <h3>Never requested at install</h3>
+        <p>Page access is requested per-site, only at the moment you click capture — not granted broadly on install.</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+<footer>
+  <div class="wrap" style="display:flex; justify-content:space-between; width:100%; flex-wrap:wrap; gap:24px;">
+    <div class="f-brand">
+      <div class="logo"><span class="mark"></span>SnapFull</div>
+      <p>Full-page screenshots, cropped, redacted and exported without ever leaving your machine.</p>
+    </div>
+    <div class="f-links">
+      <div class="f-col">
+        <h4>Product</h4>
+        <a href="#gaps">Why SnapFull</a>
+        <a href="#how">How it works</a>
+        <a href="#pricing">Pricing</a>
+      </div>
+      <div class="f-col">
+        <h4>Contact</h4>
+        <a href="mailto:toomuchcoffee9327@gmail.com">toomuchcoffee9327@gmail.com</a>
+        <a href="mailto:toomuchcoffee9327@gmail.com?subject=Notify%20me%20—%20SnapFull%20launch">Get notified at launch</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

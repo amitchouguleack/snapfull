@@ -1,0 +1,5 @@
+# Publishes the landing/ folder as a static site — no build step, nothing to
+# compile. The Chrome extension code elsewhere in this repo (background/,
+# popup/, etc.) is irrelevant to Netlify and safely ignored.
+[build]
+  publish = "landing"
