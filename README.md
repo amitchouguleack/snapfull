@@ -3,8 +3,21 @@
 Local-only, $0/month-infra full-page screenshot extension for Chrome (MV3).
 Capture → crop / redact / annotate → export. No cloud, no account, no backend.
 
-**Landing page:** https://claude.ai/artifact/66BdzBEvroVPTKL6txagUf
-(private — share it from the page's share menu when you're ready for others to see it)
+**Landing page (live):** https://verdant-salamander-7ceb3e.netlify.app/
+**Privacy Policy:** https://verdant-salamander-7ceb3e.netlify.app/privacy.html
+
+Source lives in [landing/](landing/). Currently deployed by dragging that
+folder into Netlify Drop (app.netlify.com/drop) and claiming the resulting
+site under a Netlify account — [netlify.toml](netlify.toml) at the repo root
+is there so this can be switched to auto-deploy-on-push later (Netlify →
+Add new site → Import from GitHub → select this repo) without extra setup,
+but that's not connected yet, so pushes to this repo do NOT currently update
+the live site — redeploy by re-dragging landing/ into Netlify Drop.
+
+(An earlier draft of this page also exists as a private Claude artifact at
+https://claude.ai/artifact/66BdzBEvroVPTKL6txagUf — the Netlify site above
+is the real, public one; use it, not the artifact, for the Chrome Web Store
+listing's Homepage URL and Privacy Policy URL.)
 
 See the original build plan for full product/architecture rationale. This
 README tracks what's actually implemented and what's left.
