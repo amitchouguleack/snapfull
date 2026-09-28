@@ -1,3 +1,5 @@
+© Amit Chougule. All rights reserved. Portfolio viewing only, not licensed for reuse.
+
 # SnapFull — Full-Page Screenshot Extension
 
 Local-only, $0/month-infra full-page screenshot extension for Chrome (MV3).
